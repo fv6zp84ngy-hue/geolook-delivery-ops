@@ -1,0 +1,98 @@
+{
+  "schema_version": "2.0",
+  "distribution_version": "0.1.0-rc.2",
+  "product_stage": "public_alpha",
+  "brand": {
+    "name": "Northstar Desk Demo",
+    "site": "https://northstar-desk.invalid"
+  },
+  "competitors": [
+    "Helio Support Demo"
+  ],
+  "questions": [
+    {
+      "id": "Q-S001",
+      "question": "What is a practical AI support platform for a growing B2B SaaS team?"
+    },
+    {
+      "id": "Q-S002",
+      "question": "How does Northstar Desk Demo differ from Helio Support Demo?"
+    }
+  ],
+  "delivery": {
+    "schema_version": "2.0",
+    "enabled": true,
+    "mode": "public_alpha",
+    "current_cycle_id": "2026-08-01-saasdemo",
+    "current_baseline_ref": "delivery/snapshots/2026-08-01-saasdemo/baseline.json",
+    "industry": "saas",
+    "target_markets": [
+      "US"
+    ],
+    "product_lines": [
+      "AI Support Workspace"
+    ],
+    "conversion_goal": "demo",
+    "cycle_history": [
+      {
+        "cycle_id": "2026-08-01-saasdemo",
+        "status": "active",
+        "started_at": "2026-08-01T09:00:00+08:00"
+      }
+    ],
+    "customer_profile": {
+      "company_size": "10-200",
+      "product_type": "saas",
+      "primary_language": "en",
+      "target_markets": [
+        "US"
+      ],
+      "product_lines": [
+        "AI Support Workspace"
+      ],
+      "icp": "B2B SaaS support teams with 20 to 100 agents",
+      "conversion_goal": "demo"
+    },
+    "roles": {
+      "project_owner": "Demo Project Owner",
+      "geo_operator": "Demo GEO Operator",
+      "fact_approver": "Demo Fact Approver",
+      "content_owner": "Demo Content Owner",
+      "web_owner": "Demo Web Owner",
+      "reviewer": "Demo Reviewer"
+    },
+    "policy": {
+      "max_scoped_tasks": 12,
+      "require_scope_approval": true,
+      "require_fact_approval": true,
+      "require_asset_approval": true,
+      "require_deployment_evidence": true,
+      "require_final_review": false
+    },
+    "planning": {
+      "team_resources": {
+        "capacity_points": 8,
+        "available_owners": [
+          "content_owner",
+          "web_owner"
+        ]
+      },
+      "business_priorities": [
+        "Clarify the product category",
+        "Improve comparison-question coverage"
+      ]
+    },
+    "scope_confirmation": {
+      "status": "approved",
+      "role": "project_owner",
+      "at": "2026-08-01T09:00:00+08:00",
+      "selected_problem_ids": [
+        "Q-S001",
+        "Q-S002"
+      ],
+      "facts_reviewed": true,
+      "pending_fact_ids": [],
+      "scope_sha256": "773c12389df4ba5e2b2f3220b19074fcbd8a1d5c58594413a7593b0f2a0bf2b5"
+    }
+  }
+}

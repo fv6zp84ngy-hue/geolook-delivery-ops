@@ -1,0 +1,20 @@
+{
+  "sample_id": "SAMPLE-S001",
+  "captured_at": "2026-08-01T08:35:00+08:00",
+  "fictional": true,
+  "questions": [
+    {
+      "id": "Q-S002",
+      "prompt_ref": "geo.json#questions/Q-S002",
+      "answer_summary": "The fictional answer compares Helio Support Demo with the category but does not cite a first-party Northstar Desk Demo comparison source.",
+      "mentioned_brands": [
+        "Northstar Desk Demo",
+        "Helio Support Demo"
+      ],
+      "citation_domains": [
+        "independent-review.invalid"
+      ],
+      "source_needs_review": true
+    }
+  ]
+}

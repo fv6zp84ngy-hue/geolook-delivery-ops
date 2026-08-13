@@ -1,0 +1,254 @@
+{
+  "tasks": [
+    {
+      "id": "T-H001",
+      "priority": "P1",
+      "package": "实体消歧",
+      "market": "US",
+      "title": "Separate Mini and Pro model facts",
+      "why": "A fictional sampled answer merges two model names and attributes an unapproved specification to both.",
+      "action": "Review the model references and wait for the pending specification fact before drafting any comparison content.",
+      "owner": "法务",
+      "effort": "M",
+      "window": "current_cycle",
+      "status": "todo",
+      "acceptance": {
+        "mode": "all",
+        "review_required": true,
+        "checks": [
+          {
+            "id": "rejected-claims",
+            "check": "facts.no_rejected_claims",
+            "required": true
+          },
+          {
+            "id": "model-review",
+            "check": "approval.required",
+            "required": true
+          }
+        ]
+      },
+      "affected": [
+        "https://aster-home.invalid/compare"
+      ],
+      "evidence": [],
+      "delivery": {
+        "schema_version": "2.0",
+        "cycle_id": "2026-08-01-hwdemo",
+        "stage": "diagnosed",
+        "case_type": "fact_error",
+        "product_line": "Aster Air Demo",
+        "icp": "Apartment residents comparing indoor environment monitors",
+        "funnel_stage": "consideration",
+        "source_refs": [
+          {
+            "id": "SRC-H001",
+            "type": "sample",
+            "ref": "samples/demo-ai-answer.json#Q-H002",
+            "label": "Fictional model-comparison answer",
+            "captured_at": "2026-08-01T09:35:00+08:00",
+            "confidence": "medium",
+            "review_status": "confirmed",
+            "review_note": "Demo Reviewer verified that the answer merges Mini and Pro; the disputed numerical specification remains unapproved and is not treated as fact.",
+            "reviewed_by_role": "reviewer",
+            "reviewed_at": "2026-08-01T09:50:00+08:00"
+          },
+          {
+            "id": "SRC-H002",
+            "type": "fact",
+            "ref": "content/facts.md#FACT-H003",
+            "label": "Pending model specification",
+            "captured_at": "2026-08-01T09:40:00+08:00",
+            "confidence": "low",
+            "review_status": "confirmed",
+            "review_note": "Demo GEO Operator confirmed only that the fact is pending; no numerical claim may enter an asset.",
+            "reviewed_by_role": "geo_operator",
+            "reviewed_at": "2026-08-01T09:52:00+08:00"
+          }
+        ],
+        "diagnosis": {
+          "confidence": "medium",
+          "review_required": true,
+          "review_reasons": [
+            "Model names and a pending numerical fact require human review."
+          ],
+          "ready_for_scope": true
+        },
+        "scope_recommendation": {
+          "priority_score": 76,
+          "recommended_priority": "P1",
+          "reason": "Model confusion is high impact, but asset work must wait for approved specifications."
+        },
+        "scope_decision": {
+          "status": "needs_evidence",
+          "decided_by_role": "project_owner",
+          "decided_by_role_name": "Demo Project Owner",
+          "decided_at": "2026-08-01T10:10:00+08:00",
+          "reason": "Hold asset production until FACT-H003 is approved or explicitly rejected for both models."
+        },
+        "assignment": {
+          "status": "pending",
+          "evidence_refs": [
+            "SRC-H001",
+            "SRC-H002"
+          ],
+          "owner_role": "fact_approver",
+          "owner_role_name": "Demo Fact Approver",
+          "dependencies": [
+            "FACT-H003"
+          ],
+          "question_ids": [
+            "Q-H002"
+          ],
+          "target_pages": [
+            "https://aster-home.invalid/compare"
+          ],
+          "target_assets": [],
+          "target_changes": [],
+          "approval_requirements": [
+            "fact_approver"
+          ],
+          "acceptance_checks": [
+            "facts.no_rejected_claims",
+            "approval.required"
+          ],
+          "missing_fields": [
+            "approved model specification",
+            "approved scope"
+          ],
+          "executable": false
+        },
+        "assets": [],
+        "approvals": [],
+        "deployments": [],
+        "verification": {},
+        "verification_history": [],
+        "regressions": [],
+        "next_action": "Demo Fact Approver resolves FACT-H003 before scope approval.",
+        "blocker": "Pending model-specific specification"
+      }
+    },
+    {
+      "id": "T-H002",
+      "priority": "P1",
+      "package": "页面技术",
+      "market": "UK",
+      "title": "Add model-specific Product structured data",
+      "why": "The Mini model page lacks model-specific Product JSON-LD in the fictional audit snapshot.",
+      "action": "Prepare a Product JSON-LD asset using only approved model identity facts.",
+      "owner": "开发",
+      "effort": "S",
+      "window": "current_cycle",
+      "status": "todo",
+      "acceptance": {
+        "mode": "all",
+        "review_required": true,
+        "checks": [
+          {
+            "id": "asset-file",
+            "check": "asset.exists",
+            "required": true
+          },
+          {
+            "id": "jsonld-product",
+            "check": "deployment.jsonld_type",
+            "required": true,
+            "target": "Product"
+          }
+        ]
+      },
+      "affected": [
+        "https://aster-home.invalid/products/air-mini"
+      ],
+      "evidence": [],
+      "delivery": {
+        "schema_version": "2.0",
+        "cycle_id": "2026-08-01-hwdemo",
+        "stage": "scoped",
+        "case_type": "technical",
+        "product_line": "Aster Air Demo",
+        "icp": "Apartment residents comparing indoor environment monitors",
+        "funnel_stage": "consideration",
+        "source_refs": [
+          {
+            "id": "SRC-H003",
+            "type": "audit",
+            "ref": "audit.json#checks/audit-hw-002",
+            "label": "Mini Product JSON-LD audit",
+            "captured_at": "2026-08-01T09:30:00+08:00",
+            "confidence": "high",
+            "review_status": "confirmed",
+            "review_note": "Demo GEO Operator inspected the fictional rendered snapshot and confirmed this is not a crawler-structure false positive.",
+            "reviewed_by_role": "geo_operator",
+            "reviewed_at": "2026-08-01T09:48:00+08:00"
+          }
+        ],
+        "diagnosis": {
+          "confidence": "high",
+          "review_required": false,
+          "review_reasons": [],
+          "ready_for_scope": true
+        },
+        "scope_recommendation": {
+          "priority_score": 88,
+          "recommended_priority": "P0",
+          "reason": "Technical ticket retained at the top of the cycle with small estimated effort."
+        },
+        "scope_decision": {
+          "decision_id": "scope-demo-h002",
+          "status": "approved",
+          "decided_by_role": "project_owner",
+          "decided_by_role_name": "Demo Project Owner",
+          "decided_at": "2026-08-01T10:12:00+08:00",
+          "reason": "Approved as a bounded technical change using only already approved model identity facts.",
+          "priority_score": 88,
+          "recommended_priority": "P0"
+        },
+        "assignment": {
+          "status": "pending",
+          "evidence_refs": [
+            "SRC-H003"
+          ],
+          "owner_role": "web_owner",
+          "owner_role_name": "Demo Web Owner",
+          "dependencies": [
+            "FACT-H001",
+            "FACT-H002"
+          ],
+          "question_ids": [
+            "Q-H001"
+          ],
+          "target_pages": [
+            "https://aster-home.invalid/products/air-mini"
+          ],
+          "target_assets": [
+            "jsonld/product/air-mini.json"
+          ],
+          "target_changes": [
+            "Insert model-specific Product JSON-LD in the page head."
+          ],
+          "approval_requirements": [
+            "web_owner",
+            "fact_approver"
+          ],
+          "acceptance_checks": [
+            "asset.exists",
+            "deployment.jsonld_type"
+          ],
+          "missing_fields": [
+            "assignee confirmation"
+          ],
+          "executable": false
+        },
+        "assets": [],
+        "approvals": [],
+        "deployments": [],
+        "verification": {},
+        "verification_history": [],
+        "regressions": [],
+        "next_action": "Demo Web Owner confirms the assignment specification.",
+        "blocker": ""
+      }
+    }
+  ]
+}

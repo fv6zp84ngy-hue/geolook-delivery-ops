@@ -1,0 +1,23 @@
+{
+  "pack_type": "industry_template_candidate_pack",
+  "template_id": "industry.saas.v1",
+  "industry_type": "saas",
+  "language": "en",
+  "candidate_only": true,
+  "evidence_status": "unconfirmed",
+  "scope_status": "not_approved",
+  "fictional_project": {"brand": "Northstar Desk", "site": "https://northstar-saas.invalid", "conversion_goal": "demo"},
+  "question_candidates": [
+    {"pattern_id": "saas.q.category", "text": "What is Northstar Desk and which AI support category does it belong to?", "status": "candidate"},
+    {"pattern_id": "saas.q.security", "text": "How does Northstar Desk handle security, privacy and compliance?", "status": "candidate"},
+    {"pattern_id": "saas.q.comparison", "text": "How does Northstar Desk compare with another product?", "status": "candidate"}
+  ],
+  "diagnosis_candidates": [
+    {"rule_id": "saas.rule.category", "case_type": "content_gap", "status": "candidate", "evidence_refs": []},
+    {"rule_id": "saas.rule.security", "case_type": "fact_error", "status": "candidate", "evidence_refs": []}
+  ],
+  "asset_candidate_ids": ["saas.asset.category", "saas.asset.alternative", "saas.asset.comparison", "saas.asset.integration", "saas.asset.security_faq", "saas.asset.customer_proof", "saas.asset.software_jsonld"],
+  "approval_default_ids": ["saas.approval.fact", "saas.approval.content", "saas.approval.technical"],
+  "acceptance_default_ids": ["saas.accept.asset", "saas.accept.approval", "saas.accept.url", "saas.accept.text", "saas.accept.software_jsonld", "saas.accept.facts"],
+  "next_gate": "Bind at least one real evidence reference and request human diagnosis review."
+}

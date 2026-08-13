@@ -1,0 +1,102 @@
+{
+  "schema_version": "2.0",
+  "distribution_version": "0.1.0-rc.2",
+  "product_stage": "public_alpha",
+  "brand": {
+    "name": "Aster Home Demo",
+    "site": "https://aster-home.invalid"
+  },
+  "competitors": [
+    "Orbit Living Demo"
+  ],
+  "questions": [
+    {
+      "id": "Q-H001",
+      "question": "Which indoor environment monitor is suitable for a small apartment?"
+    },
+    {
+      "id": "Q-H002",
+      "question": "What is the difference between Aster Air Mini Demo and Aster Air Pro Demo?"
+    }
+  ],
+  "delivery": {
+    "schema_version": "2.0",
+    "enabled": true,
+    "mode": "public_alpha",
+    "current_cycle_id": "2026-08-01-hwdemo",
+    "current_baseline_ref": "delivery/snapshots/2026-08-01-hwdemo/baseline.json",
+    "industry": "smart_hardware",
+    "target_markets": [
+      "US",
+      "UK"
+    ],
+    "product_lines": [
+      "Aster Air Demo"
+    ],
+    "conversion_goal": "lead",
+    "cycle_history": [
+      {
+        "cycle_id": "2026-08-01-hwdemo",
+        "status": "active",
+        "started_at": "2026-08-01T10:00:00+08:00"
+      }
+    ],
+    "customer_profile": {
+      "company_size": "10-200",
+      "product_type": "smart_hardware",
+      "primary_language": "en",
+      "target_markets": [
+        "US",
+        "UK"
+      ],
+      "product_lines": [
+        "Aster Air Demo"
+      ],
+      "icp": "Apartment residents comparing indoor environment monitors",
+      "conversion_goal": "lead"
+    },
+    "roles": {
+      "project_owner": "Demo Project Owner",
+      "geo_operator": "Demo GEO Operator",
+      "fact_approver": "Demo Fact Approver",
+      "content_owner": "Demo Content Owner",
+      "web_owner": "Demo Web Owner",
+      "reviewer": "Demo Reviewer"
+    },
+    "policy": {
+      "max_scoped_tasks": 12,
+      "require_scope_approval": true,
+      "require_fact_approval": true,
+      "require_asset_approval": true,
+      "require_deployment_evidence": true,
+      "require_final_review": true
+    },
+    "planning": {
+      "team_resources": {
+        "capacity_points": 5,
+        "available_owners": [
+          "fact_approver",
+          "content_owner"
+        ]
+      },
+      "business_priorities": [
+        "Prevent model confusion",
+        "Publish only approved specifications"
+      ]
+    },
+    "scope_confirmation": {
+      "status": "approved",
+      "role": "project_owner",
+      "at": "2026-08-01T10:00:00+08:00",
+      "selected_problem_ids": [
+        "Q-H001",
+        "Q-H002"
+      ],
+      "facts_reviewed": true,
+      "pending_fact_ids": [
+        "FACT-H003"
+      ],
+      "scope_sha256": "723514d597b7ec42386c8730ff0385d10155ca3347b666706f999572317d73d1"
+    }
+  }
+}

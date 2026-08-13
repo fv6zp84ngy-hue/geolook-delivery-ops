@@ -1,0 +1,39 @@
+{
+  "schema_version": "2.0",
+  "distribution_version": "0.1.0-rc.2",
+  "product_stage": "public_alpha",
+  "cycle_id": "2026-08-01-hwdemo",
+  "created_at": "2026-08-01T10:00:00+08:00",
+  "scope": {
+    "scope_sha256": "723514d597b7ec42386c8730ff0385d10155ca3347b666706f999572317d73d1",
+    "confirmed_at": "2026-08-01T10:00:00+08:00",
+    "selected_problem_ids": [
+      "Q-H001",
+      "Q-H002"
+    ]
+  },
+  "project": {
+    "brand": "Aster Home Demo",
+    "site": "https://aster-home.invalid",
+    "product_type": "smart_hardware",
+    "target_markets": [
+      "US",
+      "UK"
+    ],
+    "product_lines": [
+      "Aster Air Demo"
+    ],
+    "conversion_goal": "lead"
+  },
+  "audit": {
+    "ref": "audit.json",
+    "captured_at": "2026-08-01T09:30:00+08:00",
+    "issues": 2
+  },
+  "facts": {
+    "reviewed": true,
+    "pending_fact_ids": [
+      "FACT-H003"
+    ]
+  }
+}

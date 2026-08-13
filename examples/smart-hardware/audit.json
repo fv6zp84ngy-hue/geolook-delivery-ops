@@ -1,0 +1,24 @@
+{
+  "site": "https://aster-home.invalid",
+  "captured_at": "2026-08-01T09:30:00+08:00",
+  "summary": {
+    "pages_checked": 4,
+    "issues": 2
+  },
+  "checks": [
+    {
+      "id": "audit-hw-001",
+      "check": "pages.model_names_consistent",
+      "url": "https://aster-home.invalid/compare",
+      "result": "fail",
+      "note": "Fictional snapshot: two model labels are used without a shared comparison table."
+    },
+    {
+      "id": "audit-hw-002",
+      "check": "pages.has_jsonld",
+      "url": "https://aster-home.invalid/products/air-mini",
+      "result": "fail",
+      "note": "Fictional snapshot: no Product JSON-LD was observed."
+    }
+  ]
+}

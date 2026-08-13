@@ -1,0 +1,21 @@
+{
+  "sample_id": "SAMPLE-H001",
+  "captured_at": "2026-08-01T09:35:00+08:00",
+  "fictional": true,
+  "questions": [
+    {
+      "id": "Q-H002",
+      "prompt_ref": "geo.json#questions/Q-H002",
+      "answer_summary": "The fictional answer merges the Mini and Pro model names and repeats a numerical specification that is not approved in the demo fact library.",
+      "mentioned_brands": [
+        "Aster Home Demo"
+      ],
+      "mentioned_models": [
+        "Aster Air Mini Demo",
+        "Aster Air Pro Demo"
+      ],
+      "citation_domains": [],
+      "source_needs_review": true
+    }
+  ]
+}

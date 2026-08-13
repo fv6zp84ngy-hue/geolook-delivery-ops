@@ -1,0 +1,226 @@
+{
+  "tasks": [
+    {
+      "id": "T-S001",
+      "priority": "P1",
+      "package": "实体消歧",
+      "market": "US",
+      "title": "Add an explicit AI support workspace definition",
+      "why": "The product page does not state a compact category definition that can be cited independently.",
+      "action": "Draft a definition block tied only to approved brand facts for the product page.",
+      "owner": "内容",
+      "effort": "S",
+      "window": "current_cycle",
+      "status": "todo",
+      "acceptance": {
+        "mode": "all",
+        "review_required": true,
+        "checks": [
+          {
+            "id": "contains-definition",
+            "check": "deployment.contains_text",
+            "required": true,
+            "target": "AI support workspace"
+          },
+          {
+            "id": "fact-review",
+            "check": "facts.no_rejected_claims",
+            "required": true
+          }
+        ]
+      },
+      "affected": [
+        "https://northstar-desk.invalid/product"
+      ],
+      "evidence": [],
+      "delivery": {
+        "schema_version": "2.0",
+        "cycle_id": "2026-08-01-saasdemo",
+        "stage": "scoped",
+        "case_type": "content_gap",
+        "product_line": "AI Support Workspace",
+        "icp": "B2B SaaS support teams with 20 to 100 agents",
+        "funnel_stage": "consideration",
+        "source_refs": [
+          {
+            "id": "SRC-S001",
+            "type": "audit",
+            "ref": "audit.json#checks/audit-saas-001",
+            "label": "Product definition audit",
+            "captured_at": "2026-08-01T08:30:00+08:00",
+            "confidence": "high",
+            "review_status": "confirmed",
+            "review_note": "Demo GEO Operator confirmed that the visible product copy lacks a standalone category definition; this is not a crawler-structure error.",
+            "reviewed_by_role": "geo_operator",
+            "reviewed_at": "2026-08-01T08:45:00+08:00"
+          }
+        ],
+        "diagnosis": {
+          "confidence": "high",
+          "review_required": false,
+          "review_reasons": [],
+          "ready_for_scope": true
+        },
+        "scope_recommendation": {
+          "priority_score": 82,
+          "recommended_priority": "P1",
+          "reason": "High-confidence category clarity gap with low execution cost."
+        },
+        "scope_decision": {
+          "decision_id": "scope-demo-s001",
+          "status": "approved",
+          "decided_by_role": "project_owner",
+          "decided_by_role_name": "Demo Project Owner",
+          "decided_at": "2026-08-01T09:10:00+08:00",
+          "reason": "Approved because category clarity supports both product discovery and demo conversion without introducing unapproved claims.",
+          "priority_score": 82,
+          "recommended_priority": "P1"
+        },
+        "assignment": {
+          "status": "pending",
+          "evidence_refs": [
+            "SRC-S001"
+          ],
+          "owner_role": "content_owner",
+          "owner_role_name": "Demo Content Owner",
+          "dependencies": [
+            "FACT-S001"
+          ],
+          "question_ids": [
+            "Q-S001"
+          ],
+          "target_pages": [
+            "https://northstar-desk.invalid/product"
+          ],
+          "target_assets": [
+            "snippets/definition/product.html"
+          ],
+          "target_changes": [
+            "Insert a concise definition near the first product description."
+          ],
+          "approval_requirements": [
+            "content_owner",
+            "fact_approver"
+          ],
+          "acceptance_checks": [
+            "deployment.contains_text",
+            "facts.no_rejected_claims"
+          ],
+          "missing_fields": [
+            "assignee confirmation"
+          ],
+          "executable": false
+        },
+        "assets": [],
+        "approvals": [],
+        "deployments": [],
+        "verification": {},
+        "verification_history": [],
+        "regressions": [],
+        "next_action": "Demo Content Owner confirms the assignment specification.",
+        "blocker": ""
+      }
+    },
+    {
+      "id": "T-S002",
+      "priority": "P2",
+      "package": "内容矩阵",
+      "market": "US",
+      "title": "Clarify the comparison-question evidence gap",
+      "why": "A fictional AI answer compares products without citing a first-party comparison source.",
+      "action": "Review the sampled answer context and decide whether a comparison brief belongs in this cycle.",
+      "owner": "GEO顾问",
+      "effort": "M",
+      "window": "current_cycle",
+      "status": "todo",
+      "acceptance": {
+        "mode": "all",
+        "review_required": true,
+        "checks": [
+          {
+            "id": "manual-context-review",
+            "check": "approval.required",
+            "required": true
+          }
+        ]
+      },
+      "affected": [
+        "https://northstar-desk.invalid/compare"
+      ],
+      "evidence": [],
+      "delivery": {
+        "schema_version": "2.0",
+        "cycle_id": "2026-08-01-saasdemo",
+        "stage": "diagnosed",
+        "case_type": "external_evidence_gap",
+        "product_line": "AI Support Workspace",
+        "icp": "B2B SaaS support teams with 20 to 100 agents",
+        "funnel_stage": "consideration",
+        "source_refs": [
+          {
+            "id": "SRC-S002",
+            "type": "sample",
+            "ref": "samples/demo-ai-answer.json#Q-S002",
+            "label": "Fictional AI comparison sample",
+            "captured_at": "2026-08-01T08:35:00+08:00",
+            "confidence": "medium",
+            "review_status": "confirmed",
+            "review_note": "Demo Reviewer checked negation and competitor context; the evidence gap is retained, while no product-performance claim is inferred.",
+            "reviewed_by_role": "reviewer",
+            "reviewed_at": "2026-08-01T08:50:00+08:00"
+          }
+        ],
+        "diagnosis": {
+          "confidence": "medium",
+          "review_required": true,
+          "review_reasons": [
+            "Comparison wording requires manual context review."
+          ],
+          "ready_for_scope": true
+        },
+        "scope_recommendation": {
+          "priority_score": 58,
+          "recommended_priority": "P2",
+          "reason": "Potentially useful, but evidence and execution cost need Project Owner review."
+        },
+        "scope_decision": {
+          "status": "needs_evidence",
+          "decided_by_role": "project_owner",
+          "decided_by_role_name": "Demo Project Owner",
+          "decided_at": "2026-08-01T09:12:00+08:00",
+          "reason": "Request one additional independent sample before approving a comparison asset."
+        },
+        "assignment": {
+          "status": "pending",
+          "evidence_refs": [],
+          "owner_role": "geo_operator",
+          "owner_role_name": "Demo GEO Operator",
+          "dependencies": [],
+          "question_ids": [
+            "Q-S002"
+          ],
+          "target_pages": [
+            "https://northstar-desk.invalid/compare"
+          ],
+          "target_assets": [],
+          "target_changes": [],
+          "approval_requirements": [],
+          "acceptance_checks": [],
+          "missing_fields": [
+            "additional evidence",
+            "approved scope"
+          ],
+          "executable": false
+        },
+        "assets": [],
+        "approvals": [],
+        "deployments": [],
+        "verification": {},
+        "verification_history": [],
+        "regressions": [],
+        "next_action": "Collect one additional comparison sample and resubmit scope decision.",
+        "blocker": ""
+      }
+    }
+  ]
+}

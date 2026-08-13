@@ -1,0 +1,24 @@
+{
+  "site": "https://northstar-desk.invalid",
+  "captured_at": "2026-08-01T08:30:00+08:00",
+  "summary": {
+    "pages_checked": 3,
+    "issues": 2
+  },
+  "checks": [
+    {
+      "id": "audit-saas-001",
+      "check": "pages.has_definition",
+      "url": "https://northstar-desk.invalid/product",
+      "result": "fail",
+      "note": "Fictional snapshot: the category definition is not explicit."
+    },
+    {
+      "id": "audit-saas-002",
+      "check": "pages.has_jsonld",
+      "url": "https://northstar-desk.invalid/product",
+      "result": "pass",
+      "note": "Fictional snapshot only."
+    }
+  ]
+}
