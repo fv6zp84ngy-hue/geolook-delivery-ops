@@ -1,0 +1,1 @@
+059fcec39a3bf51826a51628564265745442ffc0478d34b287e172befef0afd0  geo-delivery-ops-v0.1.0-rc.2-tester-kit.zip

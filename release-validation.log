@@ -1,0 +1,192 @@
+$ unit tests: /Users/tanx/VibeCoding/geolook-delivery-ops-runtime/.venv/bin/python -m unittest discover -s tests -p test*.py
+.................................[geo] 体检完成：2 页，均分 39.6，分布 {'A': 0, 'B': 0, 'C': 0, 'D': 2} → <temp>
+....[geo]   竞品经采样确认：竞品A
+[geo] 导入 1 条人工样本 → <temp>
+.[geo]   竞品经采样确认：竞品A
+[geo] 导入 1 条人工样本 → <temp>
+[geo] 导入 1 条人工样本 → <temp>
+....[geo] 错误：抓取失败：没有页面返回 200，检查站点可达性/WAF
+..[geo] 错误：抓取失败：仅 1/10 页可访问（<20%），检查 WAF/反爬
+.......[geo] 补跑诊断报告失败：'grade_distribution'
+[geo] 交付包已生成 → <temp>
+.[geo] 交付包已生成 → <temp>
+.[geo] 交付包已生成 → <temp>
+.[geo] 补跑诊断报告失败：'grade_distribution'
+[geo] 交付包已生成 → <temp>
+.[geo] 交付包已生成 → <temp>
+.[geo] 补跑诊断报告失败：'grade_distribution'
+[geo] 交付包已生成 → <temp>
+....................................................................................................[geo] T-001 → done
+....[geo] 生成 1 项资产 → <temp>
+[geo] 生成 1 项资产 → <temp>
+[geo] 生成 1 项资产 → <temp>
+............[geo] 交付包已生成 → <temp>
+.[geo] 生成 1 项资产 → <temp>
+.[geo] 生成 1 项资产 → <temp>
+.[geo] 生成 1 项资产 → <temp>
+.[geo] 生成 1 项资产 → <temp>
+.[geo] 生成 1 项资产 → <temp>
+..[geo] 生成 1 项资产 → <temp>
+....................................[geo] 错误：非法项目标识：'../x'
+[geo] 错误：非法项目标识：'/etc'
+[geo] 错误：非法项目标识：'a/b'
+[geo] 错误：非法项目标识：'..'
+..[geo] 警告：<temp> 已损坏，使用默认值
+..........[geo] 自动引导：从 20 字官网正文推导项目底座
+[geo]   --skip-llm：跳过 LLM 推导，只建空底座
+........ssss.ss.ss.[geo] 回收了 1 个中断的任务记录
+.[geo] 回收了 1 个中断的任务记录
+...........................................................................[geo] 未识别的平台代码 'deepssek'，市场标记为 unknown（不进国内/海外统计）
+............................
+----------------------------------------------------------------------
+Ran 350 tests in 3.982s
+
+OK (skipped=8)
+PASS unit tests (exit 0)
+PASS unit tests
+$ integration tests: /Users/tanx/VibeCoding/geolook-delivery-ops-runtime/.venv/bin/python -m unittest tests.test_delivery_e2e tests.test_release_e2e tests.test_version_consistency
+[geo] 生成 1 项资产 → <temp>
+[geo] 生成 1 项资产 → <temp>
+[geo] 生成 1 项资产 → <temp>
+.......
+----------------------------------------------------------------------
+Ran 7 tests in 0.287s
+
+OK
+PASS integration tests (exit 0)
+PASS integration tests
+PASS build Tester Kit: geo-delivery-ops-v0.1.0-rc.2-tester-kit.zip (86 files)
+$ Tester Smoke: bash run_tester_smoke.sh
+PASS tester kit boundary
+PASS deterministic demo and repeat protection
+PASS tester metadata
+TESTER SMOKE: PASS (Python 3.14)
+Next: bash serve_public_demo.sh
+PASS Tester Smoke (exit 0)
+PASS Tester Smoke
+PASS Tester Kit extraction: geo-delivery-ops-v0.1.0-rc.2-tester-kit.zip
+$ create source demo: /Users/tanx/VibeCoding/geolook-delivery-ops-runtime/.venv/bin/python scripts/rc.py demo --root /var/folders/15/yr16htjd195db9ndp02bjdwh0000gn/T/geo-delivery-validate-ka8t28td/agent --slug validation-demo
+{
+  "ok": true,
+  "slug": "validation-demo",
+  "path": "<temp>
+  "created": true,
+  "cycle_id": "rc-demo-20260804",
+  "task_id": "T-RC-001",
+  "next": "run verify-demo"
+}
+PASS create source demo (exit 0)
+PASS create source demo
+$ verify source demo: /Users/tanx/VibeCoding/geolook-delivery-ops-runtime/.venv/bin/python scripts/rc.py verify-demo --root /var/folders/15/yr16htjd195db9ndp02bjdwh0000gn/T/geo-delivery-validate-ka8t28td/agent --slug validation-demo
+{
+  "ok": true,
+  "slug": "validation-demo",
+  "missing": [],
+  "project": "<temp>
+}
+PASS verify source demo (exit 0)
+PASS verify source demo
+$ create doctor project: /Users/tanx/VibeCoding/geolook-delivery-ops-runtime/.venv/bin/python scripts/geo.py init --url https://example.invalid --name Release Validation --slug doctor-check --market global
+[geo] 项目已创建：<temp> Validation）
+[geo] 下一步：让 Claude 补全 brand/competitors/questions，再跑 crawl
+PASS create doctor project (exit 0)
+PASS create doctor project
+$ delivery-doctor: /Users/tanx/VibeCoding/geolook-delivery-ops-runtime/.venv/bin/python scripts/geo.py delivery-doctor --slug doctor-check --json
+{
+  "schema_version": "2.0",
+  "doctor_version": "public_alpha_v1",
+  "slug": "doctor-check",
+  "cycle_id": null,
+  "ok": true,
+  "summary": {
+    "PASS": 8,
+    "WARN": 2,
+    "FAIL": 0
+  },
+  "checks": [
+    {
+      "level": "WARN",
+      "code": "tasks_missing",
+      "message": "项目还没有 tasks.json",
+      "task_id": "",
+      "ref": "tasks.json",
+      "next_action": "运行 plan 生成工单"
+    },
+    {
+      "level": "PASS",
+      "code": "tasks_schema_compatible",
+      "message": "任务结构兼容（0 条）",
+      "task_id": "",
+      "ref": "tasks.json",
+      "next_action": ""
+    },
+    {
+      "level": "WARN",
+      "code": "cycle_not_ready",
+      "message": "尚未达到新周期锁定门槛（6 项待补）",
+      "task_id": "",
+      "ref": "geo.json",
+      "next_action": "开始新周期前补齐客户画像、角色、竞品和问题库"
+    },
+    {
+      "level": "PASS",
+      "code": "task_status_consistent",
+      "message": "阶段、主状态和 required 关闭门槛一致",
+      "task_id": "",
+      "ref": "tasks.json",
+      "next_action": ""
+    },
+    {
+      "level": "PASS",
+      "code": "bound_assets_present",
+      "message": "已绑定资产与磁盘版本一致",
+      "task_id": "",
+      "ref": "",
+      "next_action": ""
+    },
+    {
+      "level": "PASS",
+      "code": "approvals_valid",
+      "message": "当前资产、部署和最终审批记录有效",
+      "task_id": "",
+      "ref": "",
+      "next_action": ""
+    },
+    {
+      "level": "PASS",
+      "code": "deployment_records_complete",
+      "message": "部署记录均包含必要 URL 和人工确认字段",
+      "task_id": "",
+      "ref": "",
+      "next_action": ""
+    },
+    {
+      "level": "PASS",
+      "code": "paths_safe",
+      "message": "基线、资产、部署和证据引用未逃逸项目目录",
+      "task_id": "",
+      "ref": "",
+      "next_action": ""
+    },
+    {
+      "level": "PASS",
+      "code": "no_orphan_assets",
+      "message": "没有未绑定的交付资产",
+      "task_id": "",
+      "ref": "assets/",
+      "next_action": ""
+    },
+    {
+      "level": "PASS",
+      "code": "reports_redacted",
+      "message": "报告未发现密钥、邮箱、绝对路径或未批准事实（检查 0 个文件）",
+      "task_id": "",
+      "ref": "deliverables/",
+      "next_action": ""
+    }
+  ]
+}
+PASS delivery-doctor (exit 0)
+PASS delivery-doctor: FAIL 0; WARN allowed for an intentionally incomplete new project
+PASS source UI HTTP smoke: 127.0.0.1:49974
+[geo] 看板已启动：http://127.0.0.1:49974/（Ctrl+C 退出）
