@@ -1,0 +1,818 @@
+"""可观测看板：GEO 是周期性工作，关键信息是「这一期相对上一期变了什么」。
+
+  python3 scripts/geo.py ui            # 起服务并打开浏览器
+
+服务本身只用标准库 http.server，但顶层 import geolib 需要第三方依赖
+（requests / beautifulsoup4 / lxml），缺失时会给出安装提示。
+前端是 scripts/ui.html 单页应用，数据走 /api，
+工单状态可以直接在界面上改（写回 tasks.json）。
+"""
+
+from __future__ import annotations
+
+import json
+import mimetypes
+import os
+import re
+import tempfile
+import threading
+import time
+import webbrowser
+from datetime import date, timedelta
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlparse
+
+try:
+    import geolib as G
+except ModuleNotFoundError as e:
+    raise SystemExit(f"缺少依赖：{e.name}。请先 pip3 install requests beautifulsoup4 lxml") from e
+import jobs as J
+import delivery as D
+import tasks as T
+
+UI = Path(__file__).resolve().parent / "ui.html"
+
+
+# ---------------------------------------------------------------- 数据聚合
+
+def list_projects() -> list[dict]:
+    out = []
+    if not G.WORK.exists():
+        return out
+    for d in sorted(G.WORK.iterdir()):
+        cfg_path = d / "geo.json"
+        if not cfg_path.exists():
+            continue
+        cfg = D.normalize_project_config(G.read_json(cfg_path, {}))
+        audit = G.read_json(d / "audit.json", {})
+        td = G.read_json(d / "tasks.json", {})
+        s = td.get("summary", {})
+        out.append({
+            "slug": d.name,
+            "name": cfg.get("brand", {}).get("name", d.name),
+            "site": cfg.get("brand", {}).get("site", ""),
+            "market": cfg.get("market", "cn"),
+            "avg_score": audit.get("avg_score"),
+            "pages": audit.get("page_count"),
+            "tasks_total": s.get("total", 0),
+            "tasks_done": s.get("by_status", {}).get("done", 0),
+            "p0_open": sum(1 for t in td.get("tasks", [])
+                           if t.get("priority") == "P0" and t.get("status") not in {"done", "wontfix"}),
+            "current_cycle_id": cfg["delivery"].get("current_cycle_id"),
+        })
+    return out
+
+
+def project(slug: str) -> dict:
+    pdir = G.project_dir(slug)
+    cfg = D.normalize_project_config(G.load_config(slug))
+    audit = G.read_json(pdir / "audit.json", {})
+    td = D.normalize_tasks_data(
+        G.read_json(pdir / "tasks.json", {"tasks": [], "summary": {}}),
+        cycle_id=cfg["delivery"].get("current_cycle_id"),
+    )
+
+    verify_hist = []
+    vdir = pdir / "verify"
+    import verify as V
+    for f in sorted(vdir.glob("*.json"), key=V.report_key) if vdir.exists() else []:
+        v = G.read_json(f, {})
+        rs = v.get("results", [])
+        counts = D.verification_verdict_counts(rs)
+        verify_hist.append({
+            "date": (v.get("verified_at") or f.stem)[:10],
+            **counts,
+            "avg_score": v.get("audit_avg_score"),
+        })
+
+    deliveries = sorted((d.name for d in (pdir / "delivery").iterdir() if d.is_dir()),
+                        reverse=True) if (pdir / "delivery").exists() else []
+
+    lint = G.read_json(pdir / "assets" / "drafts" / "_lint.json", None)
+
+    return {
+        "slug": slug,
+        "brand": cfg.get("brand", {}),
+        "market": cfg.get("market", "cn"),
+        "audit": {"avg_score": audit.get("avg_score"), "page_count": audit.get("page_count"),
+                  "grade_distribution": audit.get("grade_distribution", {}),
+                  "language_coverage": audit.get("language_coverage", {}),
+                  "site": audit.get("site", {}), "site_issues": audit.get("site_issues", []),
+                  "block_gap": audit.get("block_gap", []),
+                  "pages": sorted(audit.get("pages", []), key=lambda p: p["score"])[:40]},
+        "tasks": td.get("tasks", []),
+        "delivery": D.delivery_overview_data(cfg, td, pdir),
+        "verify_history": verify_hist,
+        "deliveries": deliveries,
+        "lint": {"total": (lint or {}).get("total_issues", 0), "high": (lint or {}).get("high", 0)},
+        "blueprint": G.read_json(pdir / "blueprint.json", None),
+        "distribution": G.read_json(pdir / "distribution.json", {}),
+        "question_count": len(cfg.get("questions", [])),
+        "deliverables_files": sorted(f.name for f in (pdir / "deliverables").glob("*.html"))
+                              if (pdir / "deliverables").exists() else [],
+        "analytics": _analytics(slug),
+        "business_signals": D.signal_view(slug),
+        "facts_struct": _facts_struct(slug),
+        # A project may have a reviewed question bank before the first AI
+        # sampling round. The delivery baseline UI must still be able to lock
+        # that scope instead of depending on analytics output.
+        "questions": cfg.get("questions", []),
+    }
+
+
+def _facts_struct(slug: str):
+    try:
+        import generate
+        f = generate.parse_facts(slug)
+        f.pop("raw", None)
+        return f
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def workbench(slug: str, qid: str) -> dict:
+    """内容工作台：定位某个问题现有的内容/草稿/大纲文件。"""
+    pdir = G.project_dir(slug)
+    cfg = G.load_config(slug)
+    q = next((x for x in cfg.get("questions", []) if x.get("id") == qid), None)
+    sources = []
+    cdir = pdir / "content"
+    if cdir.exists():
+        for f in sorted(cdir.glob("*.md")):
+            if qid and qid in f.read_text("utf-8", "replace")[:800]:
+                sources.append({"kind": "content", "path": f.name})
+    for kind, sub in (("draft", "drafts"), ("outline", "outlines")):
+        f = pdir / "assets" / sub / f"{qid}.md"
+        if f.exists():
+            sources.append({"kind": kind, "path": f"{sub}/{qid}.md"})
+    return {"question": q, "sources": sources}
+
+
+def _analytics(slug: str):
+    try:
+        import analytics
+        return analytics.build(slug)
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"{type(e).__name__}: {e}"}
+
+
+# ---------------------------------------------------------------- HTTP
+
+def asset_tree(slug: str) -> list[dict]:
+    """资产目录，供界面预览。只列文本类文件。"""
+    adir = G.project_dir(slug) / "assets"
+    out = []
+    if not adir.exists():
+        return out
+    for f in sorted(adir.rglob("*")):
+        if f.is_file() and f.suffix in (".txt", ".json", ".html", ".md"):
+            rel = f.relative_to(adir).as_posix()
+            out.append({"path": rel, "size": f.stat().st_size,
+                        "group": rel.split("/")[0] if "/" in rel else "根目录"})
+    return out
+
+
+def read_asset(slug: str, rel: str) -> dict:
+    base = (G.project_dir(slug) / "assets").resolve()
+    target = (base / rel).resolve()
+    try:
+        target.relative_to(base)
+    except ValueError:
+        raise PermissionError(rel) from None
+    if not target.is_file():
+        raise FileNotFoundError(rel)
+    return {"path": rel, "text": target.read_text("utf-8", "replace")}
+
+
+def _delivery_slug(slug: str) -> str:
+    """交付 API 在进入业务层前显式拒绝路径型 slug。"""
+    if not G.SLUG_OK.fullmatch(slug or ""):
+        raise PermissionError("非法项目标识")
+    G.project_dir(slug)
+    return slug
+
+
+def delivery_api_get(slug: str) -> dict:
+    return D.delivery_view(_delivery_slug(slug))
+
+
+def signal_api_get(slug: str) -> dict:
+    return D.signal_view(_delivery_slug(slug))
+
+
+def signal_api_import(slug: str, body: dict) -> dict:
+    slug = _delivery_slug(slug)
+    csv_text = body.get("csv_text")
+    if not isinstance(csv_text, str) or not csv_text.strip():
+        raise ValueError("csv_text 不能为空")
+    if len(csv_text.encode("utf-8")) > 900 * 1024:
+        raise ValueError("CSV 内容不能超过 900 KiB")
+    source_type = body.get("source_type") or None
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".csv", delete=True) as handle:
+        handle.write(csv_text)
+        handle.flush()
+        import signals
+        return signals.import_csv(slug, handle.name, source_type=source_type,
+                                  file_name=str(body.get("file_name") or "browser-import.csv"))
+
+
+def export_api_get(slug: str, fmt: str) -> dict:
+    import export_delivery
+    fmt = fmt or "json"
+    if fmt not in export_delivery.EXPORT_FORMATS:
+        raise ValueError("不支持的导出格式")
+    return {"format": fmt, "content": export_delivery.project_export(_delivery_slug(slug), fmt)}
+
+
+def integration_api_write(kind: str, slug: str, body: dict) -> dict:
+    slug = _delivery_slug(slug)
+    import integrations
+    if kind == "github":
+        return integrations.sync_github_issue(slug, body.get("task_id", ""), dry_run=body.get("dry_run") is True)
+    if kind == "webhook":
+        import tasks
+        data = tasks.load(slug)
+        task = next((row for row in data.get("tasks", []) if str(row.get("id")) == str(body.get("task_id"))), None)
+        if task is None:
+            raise KeyError(f"找不到工单 {body.get('task_id')}")
+        return integrations.send_webhook(slug, body.get("event", ""), task, {"url": body.get("url", ""), "timeout": body.get("timeout", 10)})
+    raise ValueError("未知集成类型")
+
+
+def delivery_api_write(action: str, slug: str, body: dict) -> dict:
+    """交付写 API 薄适配层；业务校验、锁和落盘全部复用 delivery.py。"""
+    slug = _delivery_slug(slug)
+    if not isinstance(body, dict):
+        raise TypeError("请求体必须是 JSON 对象")
+    if action == "baseline":
+        if body.get("role") != "project_owner":
+            raise ValueError("范围确认和基线锁定必须由 project_owner 提交")
+        confirmation = D.record_scope_confirmation(
+            slug,
+            body.get("problem_ids") or [],
+            body.get("pending_fact_ids") or [],
+            body.get("note", ""),
+        )
+        snapshot = D.create_cycle(slug)
+        return {"ok": True, "confirmation": confirmation, "baseline": snapshot}
+    if action == "diagnose":
+        data = D.diagnose_tasks(slug)
+        return {"ok": True, "task_count": len(data.get("tasks", []))}
+    if action == "evidence":
+        mode = str(body.get("mode") or "review")
+        if mode == "add":
+            source_ref = D.add_manual_source_ref(
+                slug, body.get("task_id", ""), body.get("label", ""),
+                body.get("note", ""), body.get("ref", ""),
+                role=body.get("role", "geo_operator"),
+                confidence=body.get("confidence", "medium"),
+            )
+            return {"ok": True, "source_ref": source_ref}
+        if mode != "review":
+            raise ValueError("mode 必须是 add 或 review")
+        task = D.review_source_ref(
+            slug, body.get("task_id", ""), body.get("evidence_id", ""),
+            body.get("status", ""), body.get("note", ""),
+            role=body.get("role", "geo_operator"),
+        )
+        return {"ok": True, "task": task}
+    if action == "scope-suggest":
+        data = D.recommend_scope(slug)
+        return {"ok": True, "task_count": len(data.get("tasks", []))}
+    if action == "scope":
+        if body.get("role") != "project_owner":
+            raise ValueError("范围决策必须由 project_owner 提交")
+        task = D.record_scope_decision(
+            slug, body.get("task_id", ""), body.get("status", ""), body.get("reason", ""),
+        )
+        return {"ok": True, "task": task}
+    if action == "assignment":
+        if str(body.get("mode") or "confirm") == "prepare":
+            data = D.prepare_assignments(slug)
+            return {"ok": True, "review": data.get("assignment_review", {})}
+        task = D.confirm_assignment(
+            slug, body.get("task_id", ""), body.get("status", ""),
+            body.get("note", ""), role=body.get("role", ""),
+        )
+        return {"ok": True, "task": task}
+    if action == "assets":
+        data = D.scan_assets(slug, generated_by="dashboard")
+        return {"ok": True, "review": data.get("asset_review", {})}
+    if action == "approval":
+        if body.get("type") == "final":
+            if body.get("role") != "reviewer":
+                raise ValueError("最终验收审批必须由 reviewer 提交")
+            result = D.record_verification_review(
+                slug, body.get("task_id", ""), body.get("status", ""),
+                body.get("note", ""), role="reviewer",
+            )
+            return {"ok": True, **result}
+        if body.get("type") != "asset":
+            raise ValueError("type 必须是 asset 或 final")
+        target = str(body.get("target") or "")
+        if not target.startswith("asset:") or not target[len("asset:"):]:
+            raise ValueError("target 必须是 asset:<asset_id>")
+        result = D.add_asset_approval(
+            slug, body.get("task_id", ""), target[len("asset:"):],
+            body.get("status", ""), body.get("role", ""), body.get("note", ""),
+            requirement_id=body.get("requirement_id", ""),
+        )
+        return {"ok": True, **result}
+    if action == "deployment":
+        evidence_ref = str(body.get("evidence_ref") or "").strip()
+        if evidence_ref and not evidence_ref.startswith(("http://", "https://")):
+            raise PermissionError("API 不接受本地部署证据路径；请使用 CLI 或提交 URL")
+        result = D.add_deployment(
+            slug, body.get("task_id", ""), body.get("target_url", ""),
+            body.get("asset_ids") or [], body.get("role", ""), body.get("note", ""),
+            channel=body.get("channel", "website"),
+            evidence_type=body.get("evidence_type", "url"),
+            evidence_ref=evidence_ref,
+            insertion_position=body.get("insertion_position", ""),
+            expected_snippets=body.get("expected_snippets"),
+            expected_jsonld_types=body.get("expected_jsonld_types"),
+            request_id=body.get("request_id", ""),
+        )
+        return {"ok": True, **result}
+    if action == "bind-asset":
+        task = D.bind_asset(
+            slug, body.get("task_id", ""), body.get("path", ""),
+            required=body.get("required", True) is not False,
+        )
+        return {"ok": True, "task": task}
+    if action == "verify":
+        import verify as V
+        report = V.run(
+            slug,
+            recrawl=body.get("recrawl", False) is True,
+            task_id=str(body.get("task_id") or "") or None,
+        )
+        return {"ok": True, "report": report}
+    raise KeyError(f"未知交付 API 动作：{action}")
+
+
+def write_env(updates: dict[str, str]):
+    """更新项目根目录 .env：值为空表示删除该行。同步进当前进程环境，让界面立即生效；
+    任务子进程每次启动都重读 .env，天然生效。"""
+    path = G.ROOT / ".env"
+    lines = path.read_text("utf-8").splitlines() if path.exists() else []
+    for k, v in updates.items():
+        pat = re.compile(rf"\s*(export\s+)?{re.escape(k)}\s*=")
+        lines = [ln for ln in lines if not pat.match(ln)]
+        if v:
+            lines.append(f"{k}={v}")
+            os.environ[k] = v
+        else:
+            os.environ.pop(k, None)
+    path.write_text("\n".join(lines) + ("\n" if lines else ""), "utf-8")
+    try:
+        path.chmod(0o600)  # 密钥文件不给同机其他用户读
+    except OSError:
+        pass
+
+
+def create_project(url: str, name: str, slug: str, market: str, max_pages: int) -> dict:
+    import geo as CLI
+
+    class A:  # 复用 CLI 的 init 逻辑，避免两份实现漂移
+        pass
+    a = A()
+    a.url, a.name, a.slug, a.market, a.max_pages = url, name or None, slug or None, market, max_pages
+    a.force = False          # 界面永不覆盖已有项目
+    return CLI.cmd_init(a)
+
+
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *a):  # 静音访问日志
+        pass
+
+    def _send(self, code, body: bytes, ctype="application/json; charset=utf-8"):
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _json(self, obj, code=200):
+        self._send(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"))
+
+    def _body(self) -> dict:
+        n = int(self.headers.get("Content-Length", 0))
+        if n > 1024 * 1024:
+            raise ValueError("请求体不能超过 1 MiB")
+        return json.loads(self.rfile.read(n) or b"{}")
+
+    # ------------------------------------------------------------ GET
+    def do_GET(self):
+        u = urlparse(self.path)
+        p, q = unquote(u.path), parse_qs(u.query)
+        try:
+            if p in ("/", "/index.html"):
+                return self._send(200, UI.read_bytes(), "text/html; charset=utf-8")
+            if p == "/api/projects":
+                return self._json(list_projects())
+            if p == "/api/actions":
+                return self._json(J.ACTIONS)
+            if p.startswith("/api/delivery/"):
+                return self._json(delivery_api_get(p[len("/api/delivery/"):]))
+            if p.startswith("/api/signals/"):
+                return self._json(signal_api_get(p[len("/api/signals/"):]))
+            if p.startswith("/api/export/"):
+                slug = p[len("/api/export/"):]
+                return self._json(export_api_get(slug, q.get("format", ["json"])[0]))
+            if p.startswith("/api/p/"):
+                return self._json(project(p[len("/api/p/"):]))
+            if p.startswith("/api/config/"):
+                slug = p[len("/api/config/"):]
+                return self._json(G.read_json(G.project_dir(slug) / "geo.json", {}))
+            if p.startswith("/api/facts/"):
+                slug = p[len("/api/facts/"):]
+                f = G.project_dir(slug) / "content" / "facts.md"
+                return self._json({"exists": f.exists(),
+                                   "text": f.read_text("utf-8") if f.exists() else ""})
+            if p.startswith("/api/assets/"):
+                return self._json(asset_tree(p[len("/api/assets/"):]))
+            if p.startswith("/api/asset/"):
+                slug = p[len("/api/asset/"):]
+                return self._json(read_asset(slug, q.get("path", [""])[0]))
+            if p.startswith("/api/workbench/"):
+                slug = p[len("/api/workbench/"):]
+                return self._json(workbench(slug, q.get("qid", [""])[0]))
+            if p == "/api/keys":
+                import sample as S
+                rows = []
+                for code, spec in S.PROVIDERS.items():
+                    key = os.environ.get(spec["key_env"], "")
+                    menv = spec.get("model_env")
+                    rows.append({"code": code, "label": spec["name"], "market": spec["market"],
+                                 "search": spec.get("search", False), "env": spec["key_env"],
+                                 "ok": S.available(code),
+                                 "key_tail": key[-4:] if len(key) >= 8 else "",
+                                 "model": os.environ.get(menv) or spec.get("model", "") if menv else spec.get("model", ""),
+                                 "model_env": menv,
+                                 "model_set": bool(menv and os.environ.get(menv)),
+                                 "note": spec.get("note", "")})
+                for code, (label, mk) in S.MANUAL_ONLY.items():
+                    rows.append({"code": code, "label": label, "market": mk,
+                                 "search": True, "env": None, "ok": None})
+                return self._json(rows)
+            if p.startswith("/api/factcheck/"):
+                slug = p[len("/api/factcheck/"):]
+                return self._json(G.read_json(G.project_dir(slug) / "factcheck.json", []) or [])
+            if p.startswith("/api/expand/"):
+                slug = p[len("/api/expand/"):]
+                return self._json(G.read_json(G.project_dir(slug) / "expand.json", {}) or {})
+            if p.startswith("/api/publish/"):
+                import publish as P
+                slug = p[len("/api/publish/"):]
+                pubs = []
+                for code, spec in P.PUBLISHERS.items():
+                    cfg = P._cfg(slug, code)
+                    pubs.append({"code": code, "name": spec["name"], "note": spec["note"],
+                                 "env": spec["env"], "missing": P.missing_env(code),
+                                 "cfg": [{"key": k, "hint": h, "value": cfg.get(k, "")}
+                                         for k, h in spec["cfg"]]})
+                return self._json({"publishers": pubs, "records": P.records(slug)})
+            if p.startswith("/api/content/"):
+                slug = p[len("/api/content/"):]
+                base = (G.project_dir(slug) / "content").resolve()
+                rel = q.get("path", [""])[0]
+                if rel:
+                    target = (base / rel).resolve()
+                    try:
+                        target.relative_to(base)
+                    except ValueError:
+                        return self._json({"error": "非法路径"}, 403)
+                    if not target.is_file():
+                        return self._json({"error": "文件不存在"}, 404)
+                    return self._json({"path": rel, "text": target.read_text("utf-8", "replace")})
+                files = sorted(f.name for f in base.glob("*.md")) if base.exists() else []
+                return self._json({"files": files})
+            if p == "/api/jobs":
+                slug = q.get("slug", [None])[0]
+                return self._json({"jobs": J.recent(slug),
+                                   "running": J.running_for(slug) if slug else None})
+            if p.startswith("/api/job/"):
+                jid = p[len("/api/job/"):]
+                job = J.get(jid)
+                if not job:
+                    return self._json({"error": "job not found"}, 404)
+                try:
+                    off = int(q.get("offset", ["0"])[0])
+                except ValueError:
+                    return self._json({"error": "offset 必须是整数"}, 400)
+                text, new_off = J.tail(jid, off)
+                return self._json({"job": job, "log": text, "offset": new_off})
+            if p.startswith("/api/files/"):
+                slug = p[len("/api/files/"):]
+                pdir = G.project_dir(slug)
+                def ls(sub, pat="*"):
+                    d = pdir / sub
+                    return sorted((x.name for x in d.glob(pat)), reverse=True) if d.exists() else []
+                dv = pdir / "deliverables"
+                return self._json({
+                    "reports": [d for d in ls("reports") if d.startswith("2")],
+                    "deliveries": [d for d in ls("delivery") if d.startswith("2")],
+                    "samples": ls("samples", "*.md"),
+                    "deliverables": sorted(f.name for f in dv.glob("*.html")) if dv.exists() else [],
+                    "content": sorted(f.name for f in (pdir / "content").glob("*.md"))
+                               if (pdir / "content").exists() else [],
+                })
+            if p.startswith("/files/"):
+                rel = p[len("/files/"):]
+                target = (G.WORK / rel).resolve()
+                try:
+                    target.relative_to(G.WORK.resolve())
+                except ValueError:
+                    return self._send(403, b"forbidden", "text/plain")
+                if not target.is_file():
+                    return self._send(404, b"not found", "text/plain")
+                ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+                if ctype.startswith("text/") or ctype in ("application/json",):
+                    ctype += "; charset=utf-8"
+                return self._send(200, target.read_bytes(), ctype)
+            return self._send(404, b"not found", "text/plain")
+        except FileNotFoundError:
+            return self._json({"error": "文件不存在"}, 404)
+        except PermissionError:
+            return self._json({"error": "非法路径"}, 403)
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
+            return self._json({"error": str(e)}, 400)
+        except SystemExit:
+            return self._json({"error": "项目不存在"}, 404)
+        except Exception as e:  # noqa: BLE001
+            return self._json({"error": f"{type(e).__name__}: {e}"}, 500)
+
+    # ------------------------------------------------------------ POST
+    def do_POST(self):
+        p = unquote(urlparse(self.path).path)
+        try:
+            body = self._body()
+
+            if p.startswith("/api/delivery/"):
+                remainder = p[len("/api/delivery/"):]
+                action, separator, slug = remainder.partition("/")
+                if not separator or action not in {
+                    "baseline", "diagnose", "evidence", "scope-suggest", "scope",
+                    "assignment", "assets", "approval", "deployment", "bind-asset", "verify",
+                }:
+                    return self._json({"error": "未知交付 API 路由"}, 404)
+                return self._json(delivery_api_write(action, slug, body))
+            if p.startswith("/api/signals/"):
+                return self._json(signal_api_import(p[len("/api/signals/"):], body))
+            if p.startswith("/api/integrations/"):
+                remainder = p[len("/api/integrations/"):]
+                kind, separator, slug = remainder.partition("/")
+                if not separator or kind not in {"github", "webhook"}:
+                    return self._json({"error": "未知集成路由"}, 404)
+                return self._json(integration_api_write(kind, slug, body))
+
+            if p == "/api/task":
+                missing = [k for k in ("slug", "id", "status") if k not in body]
+                if missing:
+                    return self._json({"error": f"缺参数：{', '.join(missing)}"}, 400)
+                valid = ("todo", "doing", "done", "blocked", "wontfix")  # 与 tasks.py 汇总口径一致
+                if body["status"] not in valid:
+                    return self._json({"ok": False, "error": f"非法状态：{body['status']}",
+                                       "valid": list(valid)}, 400)
+                try:
+                    t = T.set_status(body["slug"], body["id"], body["status"], body.get("note", ""))
+                except KeyError as e:
+                    return self._json({"error": e.args[0] if e.args else str(e)}, 404)
+                return self._json({"ok": True, "task": t})
+
+            if p == "/api/init":
+                url = (body.get("url") or "").strip()
+                if not url:
+                    return self._json({"ok": False, "error": "请填写官网地址"}, 400)
+                cfg = create_project(url, body.get("name", ""), body.get("slug", ""),
+                                     body.get("market", "cn"), int(body.get("max_pages", 25)))
+                return self._json({"ok": True, "slug": cfg["slug"]})
+
+            if p == "/api/run":
+                job = J.start(body["slug"], body["action"], body.get("params") or {})
+                return self._json({"ok": True, "job": job})
+
+            if p.startswith("/api/job/") and p.endswith("/stop"):
+                jid = p[len("/api/job/"):-len("/stop")]
+                return self._json({"ok": J.stop(jid)})
+
+            if p.startswith("/api/config/"):
+                slug = p[len("/api/config/"):]
+                cur = G.read_json(G.project_dir(slug) / "geo.json", {})
+                cur.update(body)          # 整体覆盖字段，前端传完整对象
+                G.save_config(slug, cur)
+                return self._json({"ok": True})
+
+            if p.startswith("/api/facts/"):
+                slug = p[len("/api/facts/"):]
+                f = G.project_dir(slug) / "content" / "facts.md"
+                f.parent.mkdir(parents=True, exist_ok=True)
+                f.write_text(body.get("text", ""), "utf-8")
+                return self._json({"ok": True})
+
+            if p.startswith("/api/asset/"):
+                slug = p[len("/api/asset/"):]
+                base = (G.project_dir(slug) / "assets").resolve()
+                target = (base / body["path"]).resolve()
+                try:
+                    target.relative_to(base)
+                except ValueError:
+                    return self._json({"ok": False, "error": "非法路径"}, 403)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(body.get("text", ""), "utf-8")
+                return self._json({"ok": True})
+
+            if p == "/api/precheck":
+                import analytics
+                return self._json(analytics.precheck(body.get("text", "")))
+
+            if p.startswith("/api/factcheck/"):
+                slug = p[len("/api/factcheck/"):]
+                items = body.get("items")
+                if not isinstance(items, list):
+                    return self._json({"ok": False, "error": "items 必须是数组"}, 400)
+                G.write_json(G.project_dir(slug) / "factcheck.json", items)
+                return self._json({"ok": True, "count": len(items)})
+
+            if p.startswith("/api/content/"):
+                slug = p[len("/api/content/"):]
+                base = (G.project_dir(slug) / "content").resolve()
+                rel = (body.get("path") or "").strip()
+                # 文件名允许中文（现有成稿即中文名），只挡路径分隔符和隐藏文件；
+                # 问题归属靠文件头的 qid 注释识别，不靠文件名
+                if ("/" in rel or "\\" in rel or ".." in rel or rel.startswith(".")
+                        or not rel.endswith(".md") or len(rel) <= 3):
+                    return self._json({"ok": False, "error": "文件名须是 .md，不能包含路径"}, 400)
+                base.mkdir(parents=True, exist_ok=True)
+                (base / rel).write_text(body.get("text", ""), "utf-8")
+                return self._json({"ok": True})
+
+            if p == "/api/keys":
+                import publish as P
+                import sample as S
+                allowed = set()
+                for spec in S.PROVIDERS.values():
+                    allowed.add(spec["key_env"])
+                    if spec.get("model_env"):
+                        allowed.add(spec["model_env"])
+                for spec in P.PUBLISHERS.values():
+                    allowed.update(spec["env"])
+                updates = body.get("updates")
+                if not isinstance(updates, dict) or not updates:
+                    return self._json({"ok": False, "error": "updates 必须是非空对象"}, 400)
+                bad = [k for k in updates if k not in allowed]
+                if bad:
+                    return self._json({"ok": False,
+                                       "error": f"不允许的变量：{', '.join(bad)}"}, 400)
+                clean = {k: str(v or "").strip() for k, v in updates.items()}
+                if any("\n" in v or "\r" in v for v in clean.values()):
+                    return self._json({"ok": False, "error": "值不能包含换行"}, 400)
+                write_env(clean)
+                return self._json({"ok": True})
+
+            if p.startswith("/api/publishcfg/"):
+                import publish as P
+                slug = p[len("/api/publishcfg/"):]
+                code = body.get("platform")
+                if code not in P.PUBLISHERS:
+                    return self._json({"ok": False, "error": f"未知渠道 {code}"}, 400)
+                keys = {k for k, _ in P.PUBLISHERS[code]["cfg"]}
+                cfg = G.read_json(G.project_dir(slug) / "geo.json", {})
+                pub = cfg.setdefault("publishing", {})
+                pub[code] = {k: str(v or "").strip() for k, v in (body.get("cfg") or {}).items()
+                             if k in keys}
+                G.save_config(slug, cfg)
+                return self._json({"ok": True})
+
+            if p.startswith("/api/publish/"):
+                # 发布 = 外发动作：只响应界面上用户的明确点击，服务端绝不自行调用
+                import publish as P
+                slug = p[len("/api/publish/"):]
+                r = P.publish(slug, body.get("platform", ""), body.get("path", ""),
+                              body.get("title", ""))
+                return self._json(r, 200 if r.get("ok") else 400)
+
+            if p.startswith("/api/distribution/"):
+                # 分发打勾：记录某问题的内容已铺到某阵地（人工确认口径，非自动判定）
+                slug = p[len("/api/distribution/"):]
+                qid, ch = (body.get("qid") or "").strip(), (body.get("channel") or "").strip()
+                if not qid or not ch:
+                    return self._json({"ok": False, "error": "缺 qid / channel"}, 400)
+                path = G.project_dir(slug) / "distribution.json"
+                dist = G.read_json(path, {})
+                if body.get("on"):
+                    dist.setdefault(qid, {})[ch] = G.now_iso()
+                else:
+                    dist.get(qid, {}).pop(ch, None)
+                    if not dist.get(qid):
+                        dist.pop(qid, None)
+                G.write_json(path, dist)
+                return self._json({"ok": True, "distribution": dist})
+
+            if p == "/api/questions-add":
+                slug = body.get("slug") or ""
+                items = body.get("items")
+                if not slug or not isinstance(items, list) or not items:
+                    return self._json({"ok": False, "error": "缺 slug / items"}, 400)
+                cfg = G.read_json(G.project_dir(slug) / "geo.json", {})
+                qs = cfg.setdefault("questions", [])
+                existing = {q.get("text", "").strip() for q in qs}
+                series = {"cn": 1, "global": 101, "both": 901}
+                used = {int(m.group(1)) for q in qs
+                        if (m := re.match(r"q(\d+)$", str(q.get("id", ""))))}
+                added = []
+                for it in items:
+                    text = str(it.get("text") or "").strip()
+                    mk = it.get("market") if it.get("market") in series else "cn"
+                    grp = str(it.get("group") or "场景").strip() or "场景"
+                    if not text or text in existing:
+                        continue
+                    n = series[mk]
+                    while n in used:
+                        n += 1
+                    used.add(n)
+                    q = {"id": f"q{n:03d}", "group": grp, "market": mk, "text": text,
+                         "source": "expand"}
+                    qs.append(q)
+                    existing.add(text)
+                    added.append(q)
+                if added:
+                    G.save_config(slug, cfg)
+                return self._json({"ok": True, "added": len(added),
+                                   "ids": [q["id"] for q in added]})
+
+            if p == "/api/sample-import":
+                import sample as S
+                path = G.project_dir(body["slug"]) / "samples" / body["file"]
+                if body.get("text") is not None:
+                    path.write_text(body["text"], "utf-8")
+                S.sample_import(body["slug"], str(path))
+                return self._json({"ok": True})
+
+            return self._send(404, b"not found", "text/plain")
+        except PermissionError:
+            return self._json({"ok": False, "error": "非法路径"}, 403)
+        except KeyError as e:
+            return self._json({"ok": False, "error": e.args[0] if e.args else str(e)}, 404)
+        except SystemExit:  # G.die 会 sys.exit
+            return self._json({"ok": False, "error": "操作失败（常见原因：项目标识已被占用）"}, 400)
+        except (ValueError, TypeError, RuntimeError, json.JSONDecodeError) as e:
+            return self._json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:  # noqa: BLE001
+            return self._json({"ok": False, "error": f"{type(e).__name__}: {e}"}, 500)
+
+
+def _monitor_tick():
+    """周期复跑：geo.json 的 monitor.next_run 到期就自动跑完整一期。
+
+    GEO 是周期性工作——只在看板服务运行时触发（单机自托管，没有独立守护进程），
+    服务停着的那几天不补跑，到期后下次启动时跑一次。"""
+    for d in (G.WORK.iterdir() if G.WORK.exists() else []):
+        cfg_path = d / "geo.json"
+        if not cfg_path.exists():
+            continue
+        cfg = G.read_json(cfg_path, {})
+        mon = cfg.get("monitor") or {}
+        every = mon.get("every_days")
+        if not every or (mon.get("next_run") or "") > G.today():
+            continue
+        if J.running_for(d.name):
+            continue  # 有任务在跑，下个 tick 再看
+        try:
+            J.start(d.name, "serve", {})
+            mon["next_run"] = (date.today() + timedelta(days=int(every))).isoformat()
+            cfg["monitor"] = mon
+            G.save_config(d.name, cfg)
+            G.info(f"周期复跑触发：{d.name}，下次 {mon['next_run']}")
+        except (ValueError, RuntimeError) as e:
+            G.info(f"周期复跑跳过 {d.name}：{e}")
+
+
+def _monitor_loop():
+    while True:
+        try:
+            _monitor_tick()
+        except Exception as e:  # noqa: BLE001  调度线程绝不能死
+            G.info(f"周期复跑检查出错：{type(e).__name__}: {e}")
+        time.sleep(1800)
+
+
+def run(port: int = 8765, open_browser: bool = True):
+    J.reap_orphans()  # 回收上次服务留下的 running 僵尸记录，恢复并发保护
+    threading.Thread(target=_monitor_loop, daemon=True).start()
+    srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    url = f"http://127.0.0.1:{port}/"
+    G.info(f"看板已启动：{url}（Ctrl+C 退出）")
+    if open_browser:
+        threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        G.info("看板已停止")
+    finally:
+        srv.server_close()
