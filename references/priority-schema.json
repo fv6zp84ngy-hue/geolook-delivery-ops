@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geolook.invalid/schemas/delivery-priority-v1.json",
+  "title": "GEO Delivery Priority v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "score",
+    "business_value",
+    "buyer_intent",
+    "visibility_gap",
+    "evidence_confidence",
+    "feasibility",
+    "effort_penalty",
+    "explanation",
+    "advisory_only"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "score": {"type": "integer", "minimum": -3, "maximum": 15},
+    "business_value": {"type": "integer", "minimum": 0, "maximum": 3},
+    "buyer_intent": {"type": "integer", "minimum": 0, "maximum": 3},
+    "visibility_gap": {"type": "integer", "minimum": 0, "maximum": 3},
+    "evidence_confidence": {"type": "integer", "minimum": 0, "maximum": 3},
+    "feasibility": {"type": "integer", "minimum": 0, "maximum": 3},
+    "effort_penalty": {"type": "integer", "minimum": 0, "maximum": 3},
+    "recommended_priority": {"enum": ["P0", "P1", "P2", "P3"]},
+    "p0_capacity_reserved": {"type": "boolean"},
+    "rank": {"type": "integer", "minimum": 1},
+    "recommendation": {"enum": ["recommended", "next_cycle", "needs_evidence"]},
+    "recommended_for_cycle": {"type": "boolean"},
+    "capacity_reason": {"type": "string"},
+    "matched_strategic_priority_ids": {"type": "array", "items": {"type": "string"}},
+    "explanation": {"type": "array", "items": {"type": "string"}, "minItems": 6},
+    "advisory_only": {"const": true}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "template_id": "industry.smart_hardware.v1",
+  "template_version": "1.0",
+  "industry_type": "smart_hardware",
+  "supported_language": "en",
+  "candidate_only": true,
+  "description": "English-language smart hardware diagnosis candidates.",
+  "applicable_conversion_goals": ["purchase", "dealer_lead", "demo", "contact_sales", "support"],
+  "generator_families": ["llms", "jsonld", "snippets", "outlines"],
+  "required_facts": [
+    {"id": "hardware.fact.model", "label": "Canonical model name, number and aliases", "evidence_required": true},
+    {"id": "hardware.fact.spec", "label": "Specifications with units and model scope", "evidence_required": true},
+    {"id": "hardware.fact.certification", "label": "Certification identifier, jurisdiction, model scope and validity", "evidence_required": true},
+    {"id": "hardware.fact.compatibility", "label": "Compatible devices, protocols, software and exclusions", "evidence_required": true},
+    {"id": "hardware.fact.region", "label": "Country variants, voltage, radio and regional availability", "evidence_required": true},
+    {"id": "hardware.fact.installation", "label": "Installation, repair and service boundaries", "evidence_required": true},
+    {"id": "hardware.fact.warranty", "label": "Warranty duration, region and exclusions", "evidence_required": true},
+    {"id": "hardware.fact.dealer", "label": "Authorized dealer and distributor records", "evidence_required": true},
+    {"id": "hardware.fact.manual", "label": "PDF manual version, date and matching web model", "evidence_required": true}
+  ],
+  "question_patterns": [
+    {"id": "hardware.q.model", "group": "model", "pattern": "What is the exact model number of {brand} {product_line}, and how do its variants differ?", "intent": "disambiguation", "priority": "P0"},
+    {"id": "hardware.q.spec", "group": "specifications", "pattern": "What are the verified specifications of {brand} {product_line}?", "intent": "specification", "priority": "P0"},
+    {"id": "hardware.q.cert", "group": "certification", "pattern": "Which certifications apply to {brand} {product_line} in the target country?", "intent": "compliance_evidence", "priority": "P0"},
+    {"id": "hardware.q.compat", "group": "compatibility", "pattern": "Which devices, protocols and software are compatible with {brand} {product_line}?", "intent": "compatibility", "priority": "P0"},
+    {"id": "hardware.q.region", "group": "regional_availability", "pattern": "Which version of {brand} {product_line} is available in the target country?", "intent": "availability", "priority": "P1"},
+    {"id": "hardware.q.install", "group": "installation", "pattern": "How is {brand} {product_line} installed, maintained and repaired?", "intent": "support", "priority": "P1"},
+    {"id": "hardware.q.warranty", "group": "warranty", "pattern": "What warranty applies to {brand} {product_line} in the target country?", "intent": "warranty", "priority": "P1"},
+    {"id": "hardware.q.dealer", "group": "dealer", "pattern": "Where can buyers find an authorized {brand} dealer?", "intent": "dealer", "priority": "P1"},
+    {"id": "hardware.q.manual", "group": "manual_consistency", "pattern": "Do the {brand} PDF manual and website show the same model specifications?", "intent": "consistency", "priority": "P0"}
+  ],
+  "approval_defaults": [
+    {"id": "hardware.approval.fact", "roles": ["brand_fact_approver"], "required": true, "applies_to": ["model", "specification", "certification", "warranty", "dealer"]},
+    {"id": "hardware.approval.content", "roles": ["content_owner", "reviewer"], "required": true, "applies_to": ["page", "faq", "instructions"]},
+    {"id": "hardware.approval.technical", "roles": ["web_owner"], "required": true, "applies_to": ["jsonld", "technical_snippet"]}
+  ],
+  "acceptance_defaults": [
+    {"id": "hardware.accept.asset", "check": "asset.exists", "required": true},
+    {"id": "hardware.accept.approval", "check": "approval.required", "required": true},
+    {"id": "hardware.accept.url", "check": "deployment.url_2xx", "required": true},
+    {"id": "hardware.accept.text", "check": "deployment.contains_text", "required": true},
+    {"id": "hardware.accept.product_jsonld", "check": "deployment.jsonld_type", "target": "Product", "required": true},
+    {"id": "hardware.accept.facts", "check": "facts.no_rejected_claims", "required": true}
+  ],
+  "asset_templates": [
+    {"id": "hardware.asset.product_jsonld", "label": "Product JSON-LD", "asset_type": "product_jsonld", "generator_family": "jsonld", "approval_default_ids": ["hardware.approval.fact", "hardware.approval.technical"], "acceptance_default_ids": ["hardware.accept.asset", "hardware.accept.approval", "hardware.accept.url", "hardware.accept.product_jsonld", "hardware.accept.facts"]},
+    {"id": "hardware.asset.spec", "label": "Specification table", "asset_type": "specification_table", "generator_family": "snippets", "approval_default_ids": ["hardware.approval.fact", "hardware.approval.content"], "acceptance_default_ids": ["hardware.accept.asset", "hardware.accept.approval", "hardware.accept.url", "hardware.accept.text", "hardware.accept.facts"]},
+    {"id": "hardware.asset.cert", "label": "Certification block", "asset_type": "certification_block", "generator_family": "snippets", "approval_default_ids": ["hardware.approval.fact", "hardware.approval.content"], "acceptance_default_ids": ["hardware.accept.asset", "hardware.accept.approval", "hardware.accept.text", "hardware.accept.facts"]},
+    {"id": "hardware.asset.compat", "label": "Compatibility FAQ", "asset_type": "compatibility_faq", "generator_family": "snippets", "approval_default_ids": ["hardware.approval.fact", "hardware.approval.content"], "acceptance_default_ids": ["hardware.accept.asset", "hardware.accept.approval", "hardware.accept.url", "hardware.accept.text", "hardware.accept.facts"]},
+    {"id": "hardware.asset.install", "label": "Installation steps", "asset_type": "installation_steps", "generator_family": "outlines", "approval_default_ids": ["hardware.approval.fact", "hardware.approval.content"], "acceptance_default_ids": ["hardware.accept.asset", "hardware.accept.approval", "hardware.accept.url", "hardware.accept.text"]},
+    {"id": "hardware.asset.region", "label": "Regional availability page", "asset_type": "regional_availability_page", "generator_family": "outlines", "approval_default_ids": ["hardware.approval.fact", "hardware.approval.content"], "acceptance_default_ids": ["hardware.accept.asset", "hardware.accept.approval", "hardware.accept.url", "hardware.accept.text", "hardware.accept.facts"]},
+    {"id": "hardware.asset.dealer", "label": "Dealer fact correction task", "asset_type": "dealer_fact_correction", "generator_family": "outlines", "approval_default_ids": ["hardware.approval.fact", "hardware.approval.content"], "acceptance_default_ids": ["hardware.accept.asset", "hardware.accept.approval", "hardware.accept.url", "hardware.accept.text", "hardware.accept.facts"]}
+  ],
+  "diagnosis_rules": [
+    {"id": "hardware.rule.model", "case_type": "fact_error", "match": {"keywords": ["model", "variant", "alias", "product name"]}, "required_evidence_types": ["page", "fact", "human_material"], "question_pattern_ids": ["hardware.q.model"], "asset_template_ids": ["hardware.asset.product_jsonld", "hardware.asset.spec"], "reason": "Model ambiguity can mix specifications and regional variants."},
+    {"id": "hardware.rule.spec", "case_type": "fact_error", "match": {"keywords": ["spec", "dimension", "weight", "voltage", "battery"]}, "required_evidence_types": ["page", "fact", "human_material"], "question_pattern_ids": ["hardware.q.spec"], "asset_template_ids": ["hardware.asset.spec"], "reason": "Specifications require a model, unit and source."},
+    {"id": "hardware.rule.cert", "case_type": "external_evidence_gap", "match": {"keywords": ["certification", "certified", "fcc", "ce", "ul"]}, "required_evidence_types": ["page", "cited_domain", "human_material"], "question_pattern_ids": ["hardware.q.cert"], "asset_template_ids": ["hardware.asset.cert"], "reason": "Certification claims must bind jurisdiction and model scope."},
+    {"id": "hardware.rule.compat", "case_type": "content_gap", "match": {"keywords": ["compatible", "compatibility", "protocol", "works with"]}, "required_evidence_types": ["page", "fact"], "question_pattern_ids": ["hardware.q.compat"], "asset_template_ids": ["hardware.asset.compat"], "reason": "Compatibility needs explicit supported and unsupported boundaries."},
+    {"id": "hardware.rule.region", "case_type": "fact_error", "match": {"keywords": ["region", "country", "availability", "voltage"]}, "required_evidence_types": ["page", "fact"], "question_pattern_ids": ["hardware.q.region"], "asset_template_ids": ["hardware.asset.region"], "reason": "Regional variants must not inherit global claims."},
+    {"id": "hardware.rule.service", "case_type": "content_gap", "match": {"keywords": ["install", "repair", "maintenance", "warranty"]}, "required_evidence_types": ["page", "fact", "human_material"], "question_pattern_ids": ["hardware.q.install", "hardware.q.warranty"], "asset_template_ids": ["hardware.asset.install"], "reason": "Installation, repair and warranty instructions need regional ownership."},
+    {"id": "hardware.rule.dealer", "case_type": "fact_error", "match": {"keywords": ["dealer", "distributor", "reseller"]}, "required_evidence_types": ["page", "fact", "cited_domain"], "question_pattern_ids": ["hardware.q.dealer"], "asset_template_ids": ["hardware.asset.dealer"], "reason": "Dealer records can become stale or unauthorized."},
+    {"id": "hardware.rule.manual", "case_type": "fact_error", "match": {"keywords": ["manual", "pdf", "documentation", "outdated"]}, "required_evidence_types": ["page", "audit_item", "human_material"], "question_pattern_ids": ["hardware.q.manual"], "asset_template_ids": ["hardware.asset.spec", "hardware.asset.compat"], "reason": "PDF and web specifications must match the same model revision."}
+  ],
+  "risk_expressions": [
+    {"id": "hardware.risk.universal", "pattern": "works with all|universally compatible", "risk": "high", "reason": "Unbounded compatibility claim", "required_action": "List tested models, protocols and exclusions."},
+    {"id": "hardware.risk.certified", "pattern": "fully certified|certified worldwide", "risk": "high", "reason": "Certification jurisdiction is omitted", "required_action": "Bind certificate, model, country and validity."},
+    {"id": "hardware.risk.waterproof", "pattern": "waterproof", "risk": "high", "reason": "Ingress-protection scope may be missing", "required_action": "Use verified IP rating and test conditions."},
+    {"id": "hardware.risk.lifetime", "pattern": "lifetime warranty", "risk": "high", "reason": "Warranty scope may differ by region", "required_action": "State region, duration and exclusions."},
+    {"id": "hardware.risk.safety", "pattern": "completely safe|zero risk", "risk": "high", "reason": "Absolute safety promise", "required_action": "Reject absolute wording and link instructions."},
+    {"id": "hardware.risk.spec", "pattern": "up to [0-9]+|[0-9]+% longer", "risk": "high", "reason": "Quantified performance claim", "required_action": "Bind model, method, environment and date."}
+  ]
+}
