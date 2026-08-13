@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GEO observational business signal",
+  "type": "object",
+  "required": ["signal_id", "date", "source_type", "channel", "count", "confidence"],
+  "properties": {
+    "signal_id": {"type": "string"},
+    "date": {"type": "string", "format": "date"},
+    "source_type": {"enum": ["ga4", "gsc", "crm", "forms", "sales_manual", "sales_ai_report"]},
+    "channel": {"type": "string"},
+    "platform": {"type": "string"},
+    "landing_page": {"type": "string"},
+    "conversion_type": {"type": "string"},
+    "count": {"type": "number", "minimum": 0},
+    "market": {"type": "string"},
+    "product_line": {"type": "string"},
+    "confidence": {"enum": ["observed", "reported", "self_reported", "unknown"]},
+    "task_id": {"type": ["string", "null"]},
+    "mapping": {"type": "object"}
+  }
+}

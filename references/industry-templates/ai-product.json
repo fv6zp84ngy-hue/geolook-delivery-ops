@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "template_id": "industry.ai_product.v1",
+  "template_version": "1.0",
+  "industry_type": "ai_product",
+  "supported_language": "en",
+  "candidate_only": true,
+  "description": "English-language AI software product diagnosis candidates.",
+  "applicable_conversion_goals": ["demo", "free_trial", "signup", "api_signup", "contact_sales"],
+  "generator_families": ["llms", "jsonld", "snippets", "outlines"],
+  "required_facts": [
+    {"id": "ai.fact.identity", "label": "Product identity versus underlying or general-purpose model", "evidence_required": true},
+    {"id": "ai.fact.capability", "label": "Supported capabilities and evaluated tasks", "evidence_required": true},
+    {"id": "ai.fact.limit", "label": "Known limitations and unsuitable use cases", "evidence_required": true},
+    {"id": "ai.fact.data", "label": "Data collection, retention and training use", "evidence_required": true},
+    {"id": "ai.fact.deployment", "label": "Privacy and deployment options", "evidence_required": true},
+    {"id": "ai.fact.benchmark", "label": "Benchmark source, methodology, date and model version", "evidence_required": true},
+    {"id": "ai.fact.human", "label": "Human review and intervention boundary", "evidence_required": true},
+    {"id": "ai.fact.version", "label": "Current model/provider version and change history", "evidence_required": true}
+  ],
+  "question_patterns": [
+    {"id": "ai.q.identity", "group": "identity", "pattern": "Is {brand} an AI product, a model, or an application built on another model?", "intent": "disambiguation", "priority": "P0"},
+    {"id": "ai.q.capability", "group": "capability", "pattern": "What can {brand} reliably do for {product_line}?", "intent": "capability", "priority": "P0"},
+    {"id": "ai.q.limit", "group": "limitations", "pattern": "What are the limitations and unsuitable use cases of {brand}?", "intent": "boundary", "priority": "P0"},
+    {"id": "ai.q.data", "group": "data", "pattern": "Does {brand} retain customer data or use it for model training?", "intent": "privacy", "priority": "P0"},
+    {"id": "ai.q.deployment", "group": "deployment", "pattern": "Which cloud, private and on-premise deployment options does {brand} support?", "intent": "deployment", "priority": "P1"},
+    {"id": "ai.q.benchmark", "group": "benchmark", "pattern": "Which published benchmarks support the capabilities claimed by {brand}?", "intent": "evidence", "priority": "P1"},
+    {"id": "ai.q.human", "group": "human_review", "pattern": "When does {brand} require human review or intervention?", "intent": "safety", "priority": "P0"},
+    {"id": "ai.q.version", "group": "version", "pattern": "Which current model version powers {brand}, and which older claims are no longer valid?", "intent": "freshness", "priority": "P1"},
+    {"id": "ai.q.comparison", "group": "comparison", "pattern": "How does {brand} compare with {competitor} for {product_line}?", "intent": "comparison", "priority": "P1"}
+  ],
+  "approval_defaults": [
+    {"id": "ai.approval.fact", "roles": ["brand_fact_approver"], "required": true, "applies_to": ["definition", "capability", "numbers", "privacy", "benchmark"]},
+    {"id": "ai.approval.content", "roles": ["content_owner", "reviewer"], "required": true, "applies_to": ["page", "faq", "comparison"]},
+    {"id": "ai.approval.technical", "roles": ["web_owner"], "required": true, "applies_to": ["jsonld", "technical_snippet"]},
+    {"id": "ai.approval.quality", "roles": ["reviewer"], "required": true, "applies_to": ["capability_boundary", "benchmark"]}
+  ],
+  "acceptance_defaults": [
+    {"id": "ai.accept.asset", "check": "asset.exists", "required": true},
+    {"id": "ai.accept.approval", "check": "approval.required", "required": true},
+    {"id": "ai.accept.url", "check": "deployment.url_2xx", "required": true},
+    {"id": "ai.accept.text", "check": "deployment.contains_text", "required": true},
+    {"id": "ai.accept.facts", "check": "facts.no_rejected_claims", "required": true},
+    {"id": "ai.accept.quality", "check": "manual.review", "required": true, "manual": true}
+  ],
+  "asset_templates": [
+    {"id": "ai.asset.definition", "label": "Product definition", "asset_type": "product_definition", "generator_family": "snippets", "approval_default_ids": ["ai.approval.fact", "ai.approval.content"], "acceptance_default_ids": ["ai.accept.asset", "ai.accept.approval", "ai.accept.url", "ai.accept.text", "ai.accept.facts"]},
+    {"id": "ai.asset.boundary", "label": "Capability boundary", "asset_type": "capability_boundary", "generator_family": "snippets", "approval_default_ids": ["ai.approval.fact", "ai.approval.content", "ai.approval.quality"], "acceptance_default_ids": ["ai.accept.asset", "ai.accept.approval", "ai.accept.url", "ai.accept.text", "ai.accept.facts", "ai.accept.quality"]},
+    {"id": "ai.asset.data_faq", "label": "Model and data FAQ", "asset_type": "model_data_faq", "generator_family": "snippets", "approval_default_ids": ["ai.approval.fact", "ai.approval.content"], "acceptance_default_ids": ["ai.accept.asset", "ai.accept.approval", "ai.accept.url", "ai.accept.text", "ai.accept.facts"]},
+    {"id": "ai.asset.benchmark", "label": "Benchmark evidence block", "asset_type": "benchmark_evidence_block", "generator_family": "snippets", "approval_default_ids": ["ai.approval.fact", "ai.approval.quality"], "acceptance_default_ids": ["ai.accept.asset", "ai.accept.approval", "ai.accept.text", "ai.accept.facts", "ai.accept.quality"]},
+    {"id": "ai.asset.privacy", "label": "Privacy and deployment page", "asset_type": "privacy_deployment_page", "generator_family": "outlines", "approval_default_ids": ["ai.approval.fact", "ai.approval.content"], "acceptance_default_ids": ["ai.accept.asset", "ai.accept.approval", "ai.accept.url", "ai.accept.text", "ai.accept.facts"]},
+    {"id": "ai.asset.comparison", "label": "AI product comparison page", "asset_type": "ai_product_comparison_page", "generator_family": "outlines", "approval_default_ids": ["ai.approval.fact", "ai.approval.content", "ai.approval.quality"], "acceptance_default_ids": ["ai.accept.asset", "ai.accept.approval", "ai.accept.url", "ai.accept.text", "ai.accept.facts", "ai.accept.quality"]}
+  ],
+  "diagnosis_rules": [
+    {"id": "ai.rule.identity", "case_type": "fact_error", "match": {"keywords": ["model", "provider", "identity", "disambiguation", "definition"]}, "required_evidence_types": ["page", "ai_answer", "fact"], "question_pattern_ids": ["ai.q.identity"], "asset_template_ids": ["ai.asset.definition"], "reason": "The product must be distinguished from its underlying model or provider."},
+    {"id": "ai.rule.capability", "case_type": "fact_error", "match": {"keywords": ["capability", "accuracy", "reliable", "hallucination"]}, "required_evidence_types": ["page", "ai_answer", "fact"], "question_pattern_ids": ["ai.q.capability", "ai.q.limit"], "asset_template_ids": ["ai.asset.boundary"], "reason": "Capability and limitation claims must be paired."},
+    {"id": "ai.rule.data", "case_type": "content_gap", "match": {"keywords": ["data", "privacy", "retention", "training"]}, "required_evidence_types": ["page", "fact", "human_material"], "question_pattern_ids": ["ai.q.data", "ai.q.deployment"], "asset_template_ids": ["ai.asset.data_faq", "ai.asset.privacy"], "reason": "Data handling and deployment claims require approved current facts."},
+    {"id": "ai.rule.benchmark", "case_type": "external_evidence_gap", "match": {"keywords": ["benchmark", "score", "accuracy", "performance"]}, "required_evidence_types": ["page", "cited_domain", "fact"], "question_pattern_ids": ["ai.q.benchmark"], "asset_template_ids": ["ai.asset.benchmark"], "reason": "Benchmark claims need method, date and model version."},
+    {"id": "ai.rule.human", "case_type": "content_gap", "match": {"keywords": ["human", "review", "intervention", "autonomous"]}, "required_evidence_types": ["page", "fact"], "question_pattern_ids": ["ai.q.human"], "asset_template_ids": ["ai.asset.boundary"], "reason": "Human oversight boundaries must be explicit."},
+    {"id": "ai.rule.version", "case_type": "fact_error", "match": {"keywords": ["version", "deprecated", "outdated", "model change"]}, "required_evidence_types": ["page", "ai_answer", "fact"], "question_pattern_ids": ["ai.q.version"], "asset_template_ids": ["ai.asset.definition", "ai.asset.data_faq"], "reason": "Model changes can invalidate older website and AI-answer facts."},
+    {"id": "ai.rule.comparison", "case_type": "content_gap", "match": {"keywords": ["comparison", "alternative", "competitor"]}, "required_evidence_types": ["ai_answer", "cited_domain", "fact"], "question_pattern_ids": ["ai.q.comparison"], "asset_template_ids": ["ai.asset.comparison"], "reason": "AI product comparisons need versioned evidence and limitation context."}
+  ],
+  "risk_expressions": [
+    {"id": "ai.risk.accuracy", "pattern": "100% accurate|zero hallucinations", "risk": "high", "reason": "Absolute model-performance claim", "required_action": "Reject or qualify with methodology and limits."},
+    {"id": "ai.risk.human", "pattern": "no human review|required no oversight", "risk": "high", "reason": "Unbounded autonomy claim", "required_action": "Document actual oversight boundary."},
+    {"id": "ai.risk.training", "pattern": "never trains on your data", "risk": "high", "reason": "Data-use promise may vary by plan or provider", "required_action": "Bind plan, provider and policy version."},
+    {"id": "ai.risk.private", "pattern": "completely private|fully anonymous", "risk": "high", "reason": "Absolute privacy claim", "required_action": "Require approved data-flow evidence."},
+    {"id": "ai.risk.benchmark", "pattern": "outperforms|state of the art|SOTA", "risk": "high", "reason": "Comparative benchmark claim", "required_action": "Require dated reproducible benchmark evidence."},
+    {"id": "ai.risk.realtime", "pattern": "always up to date|real-time knowledge", "risk": "high", "reason": "Freshness claim", "required_action": "State retrieval scope, cutoff and failure modes."}
+  ]
+}
